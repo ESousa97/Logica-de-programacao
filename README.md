@@ -188,3 +188,7 @@ LÓGICA-DE-PROGRAMAÇÃO/
 <div align="center">
     <img src="img/jogosecreto.png" alt="Imagem Demonstrativa" width="800px" />
 </div>
+
+---
+
+link do jogo: [Jogo do Número secreto](https://logica-de-programacao-wheat.vercel.app/)
