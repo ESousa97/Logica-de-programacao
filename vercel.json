@@ -1,34 +1,24 @@
 {
   "version": 2,
+
   "cleanUrls": true,
-  "trailingSlash": false,
+
   "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "style/**/*",
-      "use": "@vercel/static"
-    }
+    { "src": "index.html",       "use": "@vercel/static" },
+    { "src": "style/**/*",       "use": "@vercel/static" }
   ],
-  "routes": [
-    {
-      "src": "/style/(.*)",
-      "dest": "/style/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
+
   "headers": [
     {
-      "source": "/(.*)\\.css",
+      "source": "/style/(.*)\\.css",
       "headers": [
         {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "key": "Cache‑Control",
+          "value": "public, max‑age=31536000, immutable"
         }
       ]
     }
