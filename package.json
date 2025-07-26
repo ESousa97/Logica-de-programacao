@@ -1,122 +1,13 @@
 {
-  "name": "numero-secreto-game",
-  "version": "2.0.0",
-  "description": "Jogo interativo do Número Secreto com interface moderna e responsiva",
-  "main": "index.html",
-  "type": "module",
-  "scripts": {
-    "dev": "npx live-server --port=3000 --open=/index.html",
-    "start": "npm run dev",
-    "build": "npm run optimize && npm run validate",
-    "optimize": "node scripts/optimize.js",
-    "validate": "node scripts/validate.js",
-    "deploy": "vercel --prod",
-    "preview": "vercel",
-    "clean": "rm -rf dist .vercel",
-    "test": "node scripts/test.js",
-    "lint": "npx eslint src/js/**/*.js",
-    "format": "npx prettier --write src/**/*.{js,css,html}",
-    "audit": "npm audit && npm run security-check",
-    "security-check": "node scripts/security-check.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Esousa97/numero-secreto-game.git"
-  },
-  "keywords": [
-    "jogo",
-    "numero-secreto",
-    "javascript",
-    "matematica",
-    "logica",
-    "interativo",
-    "educacional",
-    "web-game",
-    "vercel",
-    "responsivo"
-  ],
-  "author": {
-    "name": "Enoque Sousa",
-    "email": "sousa3086@outlook.com"
-  },
+  "name": "jogo-numero-secreto",
+  "version": "1.0.0",
+  "description": "Jogo do Número Secreto feito em HTML, CSS e JavaScript puro.",
+  "author": "Lógica de Programação",
   "license": "MIT",
-  "homepage": "https://numero-secreto-game.vercel.app",
-  "bugs": {
-    "url": "https://github.com/Esousa97/numero-secreto-game/issues"
+  "scripts": {
+    "start": "npx serve"
   },
-  "engines": {
-    "node": ">=14.0.0",
-    "npm": ">=6.0.0"
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead",
-    "not ie 11"
-  ],
   "devDependencies": {
-    "live-server": "^1.2.2",
-    "eslint": "^8.0.0",
-    "prettier": "^2.8.0",
-    "terser": "^5.16.0",
-    "cssnano": "^5.1.0",
-    "html-minifier": "^4.0.0",
-    "imagemin": "^8.0.0",
-    "imagemin-svgo": "^10.0.0",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0"
-  },
-  "dependencies": {},
-  "files": [
-    "index.html",
-    "vercel.json",
-    "src/",
-    "public/",
-    "README.md",
-    "LICENSE"
-  ],
-  "eslintConfig": {
-    "env": {
-      "browser": true,
-      "es2021": true
-    },
-    "extends": [
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "ecmaVersion": 2021,
-      "sourceType": "module"
-    },
-    "rules": {
-      "no-console": "warn",
-      "no-unused-vars": "error",
-      "prefer-const": "error",
-      "no-var": "error"
-    }
-  },
-  "prettier": {
-    "semi": true,
-    "singleQuote": true,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "printWidth": 80,
-    "bracketSpacing": true,
-    "arrowParens": "avoid"
-  },
-  "vercel": {
-    "version": 2,
-    "name": "numero-secreto-game",
-    "alias": [
-      "numero-secreto",
-      "secret-number-game"
-    ]
-  },
-  "funding": {
-    "type": "individual",
-    "url": "https://github.com/sponsors/Esousa97"
-  },
-  "volta": {
-    "node": "18.17.0",
-    "npm": "9.6.7"
+    "serve": "^14.2.0"
   }
 }
