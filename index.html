@@ -27,122 +27,393 @@
     <link rel="stylesheet" href="/src/styles/animations.css">
     <link rel="stylesheet" href="/src/styles/responsive.css">
     
-    <title>🎮 Jogo do Número Secreto</title>
+    <title>Jogo do Número Secreto</title>
 </head>
 <body>
     <!-- Floating Particles Background -->
     <div class="floating-particles" id="particles"></div>
     
+    <!-- Background Audio -->
+    <audio id="backgroundAudio" loop preload="auto" style="display: none;">
+        <source src="/src/assets/sounds/start.mp3" type="audio/mpeg">
+    </audio>
+    
+    <!-- Sound Effects -->
+    <audio id="clickSound" preload="auto" style="display: none;">
+        <source src="/src/assets/sounds/click.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="errorSound" preload="auto" style="display: none;">
+        <source src="/src/assets/sounds/error.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="successSound" preload="auto" style="display: none;">
+        <source src="/src/assets/sounds/success.mp3" type="audio/mpeg">
+    </audio>
+    
+    <audio id="victorySound" preload="auto" style="display: none;">
+        <source src="/src/assets/sounds/victory.mp3" type="audio/mpeg">
+    </audio>
+    
     <!-- Main Container -->
     <main class="container" id="gameContainer">
         <!-- Game Header Component -->
         <header class="game-header" id="gameHeader">
-            <h1 class="title">🎯 NÚMERO SECRETO</h1>
-            <p class="subtitle">Descubra o número misterioso!</p>
+            <div class="header-content">
+                <h1 class="title" id="gameTitle">
+                    <span class="title-icon">🎯</span>
+                    <span class="title-text">NÚMERO SECRETO</span>
+                    <span class="title-version">v2.0</span>
+                </h1>
+                <p class="subtitle" id="gameSubtitle">
+                    Descubra o número misterioso!
+                </p>
+                <div class="header-stats" id="headerStats">
+                    <div class="header-stat">
+                        <span class="stat-icon">🎮</span>
+                        <span class="stat-value" id="quickGamesCount">0</span>
+                        <span class="stat-label">Jogos</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-icon">🏆</span>
+                        <span class="stat-value" id="quickWinsCount">0</span>
+                        <span class="stat-label">Vitórias</span>
+                    </div>
+                    <div class="header-stat">
+                        <span class="stat-icon">🔥</span>
+                        <span class="stat-value" id="quickStreakCount">0</span>
+                        <span class="stat-label">Sequência</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-controls" id="headerControls">
+                <button class="header-btn" id="settingsBtn" title="Configurações">
+                    <span class="btn-icon">⚙️</span>
+                </button>
+                <button class="header-btn" id="statsBtn" title="Estatísticas Detalhadas">
+                    <span class="btn-icon">📊</span>
+                </button>
+                <button class="header-btn" id="helpBtn" title="Ajuda">
+                    <span class="btn-icon">❓</span>
+                </button>
+                <button class="header-btn" id="themeBtn" title="Alternar Tema">
+                    <span class="btn-icon">🌙</span>
+                </button>
+            </div>
         </header>
 
         <!-- Difficulty Selector Component -->
         <section class="difficulty-section" id="difficultySection">
-            <h3 class="section-title">Escolha a Dificuldade:</h3>
-            <div class="difficulty-selector" id="difficultySelector">
-                <button class="difficulty-btn active" data-difficulty="easy">
-                    Fácil (1-10)
-                </button>
-                <button class="difficulty-btn" data-difficulty="medium">
-                    Médio (1-100)
-                </button>
-                <button class="difficulty-btn" data-difficulty="hard">
-                    Difícil (1-1000)
-                </button>
-                <button class="difficulty-btn" data-difficulty="expert">
-                    Expert (1-5000)
-                </button>
+            <div class="difficulty-selector-content">
+                <div class="difficulty-header" id="difficultyHeader">
+                    <div class="header-content">
+                        <h3 class="section-title">
+                            <span class="title-icon">🎚️</span>
+                            <span class="title-text">Escolha a Dificuldade</span>
+                        </h3>
+                        <div class="difficulty-info" id="difficultyInfo">
+                            <span class="info-text">Selecione o nível de desafio</span>
+                        </div>
+                    </div>
+                    <div class="difficulty-stats" id="difficultyStats">
+                        <div class="stat-item">
+                            <span class="stat-icon">📊</span>
+                            <span class="stat-value" id="currentRange">1-10</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">🎯</span>
+                            <span class="stat-value" id="currentAttempts">5</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">⭐</span>
+                            <span class="stat-value" id="currentMultiplier">1x</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="difficulty-grid" id="difficultyGrid">
+                    <button class="difficulty-btn active" data-difficulty="easy">
+                        <div class="btn-header">
+                            <div class="btn-icon">😊</div>
+                            <div class="btn-name">Fácil</div>
+                        </div>
+                        <div class="btn-details">
+                            <div class="detail-range">1-10</div>
+                            <div class="detail-attempts">5 tentativas</div>
+                            <div class="detail-multiplier">1x pontos</div>
+                        </div>
+                        <div class="btn-footer">
+                            <div class="btn-status">Disponível</div>
+                        </div>
+                        <div class="active-indicator"></div>
+                    </button>
+                    
+                    <button class="difficulty-btn" data-difficulty="medium">
+                        <div class="btn-header">
+                            <div class="btn-icon">🤔</div>
+                            <div class="btn-name">Médio</div>
+                        </div>
+                        <div class="btn-details">
+                            <div class="detail-range">1-100</div>
+                            <div class="detail-attempts">8 tentativas</div>
+                            <div class="detail-multiplier">2x pontos</div>
+                        </div>
+                        <div class="btn-footer">
+                            <div class="btn-status">Disponível</div>
+                        </div>
+                    </button>
+                    
+                    <button class="difficulty-btn" data-difficulty="hard">
+                        <div class="btn-header">
+                            <div class="btn-icon">😤</div>
+                            <div class="btn-name">Difícil</div>
+                        </div>
+                        <div class="btn-details">
+                            <div class="detail-range">1-1000</div>
+                            <div class="detail-attempts">12 tentativas</div>
+                            <div class="detail-multiplier">3x pontos</div>
+                        </div>
+                        <div class="btn-footer">
+                            <div class="btn-status">Disponível</div>
+                        </div>
+                    </button>
+                    
+                    <button class="difficulty-btn" data-difficulty="expert">
+                        <div class="btn-header">
+                            <div class="btn-icon">🔥</div>
+                            <div class="btn-name">Expert</div>
+                        </div>
+                        <div class="btn-details">
+                            <div class="detail-range">1-5000</div>
+                            <div class="detail-attempts">15 tentativas</div>
+                            <div class="detail-multiplier">5x pontos</div>
+                        </div>
+                        <div class="btn-footer">
+                            <div class="btn-status">Disponível</div>
+                        </div>
+                    </button>
+                </div>
             </div>
         </section>
 
         <!-- Game Board Component -->
         <section class="game-board" id="gameBoard">
-            <!-- Game Info Panel -->
-            <div class="game-info" id="gameInfo">
-                <div class="game-status" id="gameStatus">
-                    🎮 Pronto para começar!
-                </div>
-                <div class="game-details">
-                    <div class="detail-item">
-                        <div class="detail-label">Intervalo</div>
-                        <div class="detail-value" id="rangeDisplay">1 - 10</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Tentativas</div>
-                        <div class="detail-value" id="attemptsDisplay">0</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Pontuação</div>
-                        <div class="detail-value" id="scoreDisplay">0</div>
+            <div class="game-board-content">
+                <!-- Game Info Section -->
+                <div class="game-info-section" id="gameInfoSection">
+                    <div class="game-status-card">
+                        <div class="status-header">
+                            <div class="status-icon" id="gameStatusIcon">🎮</div>
+                            <div class="status-text" id="gameStatusText">Pronto para começar!</div>
+                        </div>
+                        
+                        <div class="status-details">
+                            <div class="detail-grid">
+                                <div class="detail-card">
+                                    <div class="detail-icon">📊</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Intervalo</div>
+                                        <div class="detail-value" id="gameRange">1 - 10</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-card">
+                                    <div class="detail-icon">🎯</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Tentativas</div>
+                                        <div class="detail-value" id="gameAttempts">0/5</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-card">
+                                    <div class="detail-icon">⭐</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Pontuação</div>
+                                        <div class="detail-value" id="gameScore">0</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-card">
+                                    <div class="detail-icon">⏱️</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Tempo</div>
+                                        <div class="detail-value" id="gameTime">00:00</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Input Section Component -->
-            <div class="input-section" id="inputSection">
-                <div class="input-wrapper">
-                    <input 
-                        type="number" 
-                        class="number-input" 
-                        id="numberInput" 
-                        placeholder="Digite seu palpite..."
-                        min="1"
-                        max="10"
-                        autocomplete="off"
-                    >
+        <!-- Input Section Component -->
+        <section class="input-section" id="inputSection">
+            <div class="input-section-content">
+                <div class="input-wrapper" id="inputWrapper">
+                    <div class="input-container">
+                        <input 
+                            type="number" 
+                            class="number-input" 
+                            id="numberInput" 
+                            placeholder="Digite seu palpite..."
+                            min="1"
+                            max="10"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <div class="input-overlay" id="inputOverlay">
+                            <div class="input-glow"></div>
+                            <div class="input-particles" id="inputParticles"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-status" id="inputStatus">
+                        <div class="status-indicator" id="statusIndicator">💡</div>
+                        <div class="status-text" id="statusText">Digite um número</div>
+                    </div>
                 </div>
-                <div class="controls">
-                    <button class="btn btn-primary" id="submitBtn">
-                        🎯 Tentar
+
+                <div class="controls-section" id="controlsSection">
+                    <button class="action-btn action-btn-primary" id="submitBtn">
+                        <span class="btn-icon">🎯</span>
+                        <span class="btn-text">Tentar</span>
+                        <span class="btn-shortcut">Enter</span>
                     </button>
-                    <button class="btn btn-secondary" id="newGameBtn">
-                        🔄 Novo Jogo
+                    
+                    <button class="action-btn action-btn-secondary" id="newGameBtn">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-text">Novo Jogo</span>
+                        <span class="btn-shortcut">N</span>
+                    </button>
+                    
+                    <button class="action-btn action-btn-hint" id="hintBtn" style="display: none;">
+                        <span class="btn-icon">💡</span>
+                        <span class="btn-text">Dica</span>
+                        <span class="btn-cost">-100</span>
                     </button>
                 </div>
             </div>
+        </section>
 
-            <!-- Message Display Component -->
-            <div class="message-area" id="messageArea">
-                <div class="message message-info" id="gameMessage">
-                    Bem-vindo! Escolha um número e tente sua sorte! 🍀
+        <!-- Message Display Component -->
+        <section class="message-area" id="messageArea">
+            <div class="message-display-content">
+                <div class="main-message" id="mainMessage">
+                    <div class="message-wrapper">
+                        <div class="message-icon" id="messageIcon">🎮</div>
+                        <div class="message-content">
+                            <div class="message-text" id="messageText">
+                                Bem-vindo! Escolha um número e tente sua sorte!
+                            </div>
+                            <div class="message-subtext" id="messageSubtext"></div>
+                        </div>
+                        <div class="message-actions" id="messageActions"></div>
+                    </div>
+                    
+                    <div class="message-progress" id="messageProgress">
+                        <div class="progress-bar" id="messageProgressBar"></div>
+                    </div>
                 </div>
+
+                <div class="toast-container" id="toastContainer"></div>
+                <div class="achievements-container" id="achievementsContainer"></div>
+                <div class="quick-feedback" id="quickFeedback"></div>
             </div>
         </section>
 
         <!-- Stats Panel Component -->
         <section class="stats-panel" id="statsPanel">
-            <h3 class="section-title">📊 Suas Estatísticas</h3>
-            <div class="stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="totalGames">0</div>
-                    <div class="stat-label">Jogos</div>
+            <div class="stats-panel-content">
+                <div class="stats-header" id="statsHeader">
+                    <div class="stats-title">
+                        <span class="title-icon">📊</span>
+                        <span class="title-text">Suas Estatísticas</span>
+                    </div>
+                    <div class="stats-actions">
+                        <button class="stats-action-btn" id="refreshStatsBtn" title="Atualizar">
+                            <span class="btn-icon">🔄</span>
+                        </button>
+                        <button class="stats-action-btn" id="exportStatsBtn" title="Exportar">
+                            <span class="btn-icon">📤</span>
+                        </button>
+                        <button class="stats-action-btn" id="resetStatsBtn" title="Resetar">
+                            <span class="btn-icon">🗑️</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalWins">0</div>
-                    <div class="stat-label">Vitórias</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="winRate">0%</div>
-                    <div class="stat-label">Taxa de Acerto</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="bestScore">0</div>
-                    <div class="stat-label">Melhor Pontuação</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="avgAttempts">0</div>
-                    <div class="stat-label">Média de Tentativas</div>
+
+                <div class="main-stats" id="mainStats">
+                    <div class="stat-card" data-stat="gamesPlayed">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalGames">0</div>
+                            <div class="stat-label">Jogos</div>
+                            <div class="stat-trend" id="gamesTrend"></div>
+                        </div>
+                        <div class="stat-sparkline" id="gamesSparkline"></div>
+                    </div>
+
+                    <div class="stat-card" data-stat="gamesWon">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalWins">0</div>
+                            <div class="stat-label">Vitórias</div>
+                            <div class="stat-trend" id="winsTrend"></div>
+                        </div>
+                        <div class="stat-sparkline" id="winsSparkline"></div>
+                    </div>
+
+                    <div class="stat-card" data-stat="winRate">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="winRate">0%</div>
+                            <div class="stat-label">Taxa de Vitória</div>
+                            <div class="stat-trend" id="winRateTrend"></div>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="winRateProgress"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" data-stat="bestScore">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="bestScore">0</div>
+                            <div class="stat-label">Melhor Pontuação</div>
+                            <div class="stat-trend" id="scoreTrend"></div>
+                        </div>
+                        <div class="stat-achievement" id="scoreAchievement"></div>
+                    </div>
+
+                    <div class="stat-card" data-stat="currentStreak">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="currentStreak">0</div>
+                            <div class="stat-label">Sequência Atual</div>
+                            <div class="stat-trend" id="streakTrend"></div>
+                        </div>
+                        <div class="streak-flames" id="streakFlames"></div>
+                    </div>
+
+                    <div class="stat-card" data-stat="avgAttempts">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="avgAttempts">0</div>
+                            <div class="stat-label">Média de Tentativas</div>
+                            <div class="stat-trend" id="attemptsTrend"></div>
+                        </div>
+                        <div class="efficiency-meter" id="efficiencyMeter"></div>
+                    </div>
                 </div>
             </div>
         </section>
     </main>
 
-    <!-- Victory Modal (Hidden by default) -->
+    <!-- Victory Modal -->
     <div class="modal-overlay" id="victoryModal" style="display: none;">
         <div class="modal-content victory-modal">
             <div class="modal-header">
@@ -176,16 +447,87 @@
         </div>
     </div>
 
+    <!-- Audio Manager Script -->
+    <script>
+        class AudioManager {
+            constructor() {
+                this.sounds = {
+                    background: document.getElementById('backgroundAudio'),
+                    click: document.getElementById('clickSound'),
+                    error: document.getElementById('errorSound'),
+                    success: document.getElementById('successSound'),
+                    victory: document.getElementById('victorySound')
+                };
+                
+                this.isEnabled = true;
+                this.volumes = {
+                    background: 0.2,
+                    click: 0.7,
+                    error: 0.8,
+                    success: 0.8,
+                    victory: 0.9
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                Object.keys(this.sounds).forEach(key => {
+                    if (this.sounds[key]) {
+                        this.sounds[key].volume = this.volumes[key];
+                    }
+                });
+                
+                this.startBackgroundMusic();
+                this.setupGlobalClickHandler();
+            }
+            
+            play(soundName) {
+                if (!this.isEnabled || !this.sounds[soundName]) return;
+                
+                const sound = this.sounds[soundName];
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log('Audio play failed:', e));
+            }
+            
+            startBackgroundMusic() {
+                if (this.sounds.background) {
+                    this.sounds.background.play().catch(e => {
+                        console.log('Background music failed to start:', e);
+                    });
+                }
+            }
+            
+            setupGlobalClickHandler() {
+                document.addEventListener('click', (e) => {
+                    if (e.target.matches('button, .btn, .difficulty-btn, .interactive')) {
+                        this.play('click');
+                    }
+                });
+            }
+            
+            toggle() {
+                this.isEnabled = !this.isEnabled;
+                if (!this.isEnabled && this.sounds.background) {
+                    this.sounds.background.pause();
+                } else if (this.isEnabled && this.sounds.background) {
+                    this.sounds.background.play();
+                }
+            }
+        }
+        
+        window.audioManager = new AudioManager();
+    </script>
+
     <!-- Loading Scripts -->
     <script type="module">
-        // Import all components and initialize the game
         import { GameConfig } from '/src/js/config.js';
         import { GameLogic } from '/src/js/game.js';
         import { UIManager } from '/src/js/ui.js';
         import { StorageManager } from '/src/js/storage.js';
         import { Utils } from '/src/js/utils.js';
+        import { audioSystem } from '/src/js/audio.js';
         
-        // Initialize components
         import '/src/components/game-header.js';
         import '/src/components/game-board.js';
         import '/src/components/input-section.js';
@@ -193,22 +535,61 @@
         import '/src/components/stats-panel.js';
         import '/src/components/difficulty-selector.js';
 
-        // Initialize the game when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎮 Inicializando Jogo do Número Secreto...');
+            console.log('Inicializando Jogo do Número Secreto...');
             
-            // Initialize managers
-            const storage = new StorageManager();
-            const ui = new UIManager();
-            const game = new GameLogic(storage, ui);
-            
-            // Load saved stats
-            ui.updateStats(storage.getStats());
-            
-            // Create floating particles
-            Utils.createFloatingParticles();
-            
-            console.log('✅ Jogo inicializado com sucesso!');
+            try {
+                // Inicializar sistema de áudio
+                window.audioSystem = audioSystem;
+                
+                // Inicializar componentes principais
+                const storage = new StorageManager();
+                const ui = new UIManager();
+                const game = new GameLogic(storage, ui);
+                
+                // Atualizar UI inicial
+                ui.updateStats(storage.getStats());
+                Utils.createFloatingParticles();
+                
+                // Expor instâncias globalmente para debug
+                window.gameInstance = game;
+                window.uiManager = ui;
+                window.storageManager = storage;
+                
+                console.log('Jogo inicializado com sucesso!');
+                
+                // Configurar eventos de áudio personalizados
+                document.addEventListener('gameWon', () => {
+                    audioSystem.play('success');
+                    setTimeout(() => audioSystem.play('victory'), 500);
+                });
+                
+                document.addEventListener('gameLost', () => {
+                    audioSystem.play('error');
+                });
+                
+                document.addEventListener('gameMessage', (e) => {
+                    const { type } = e.detail;
+                    if (type === 'error') {
+                        audioSystem.play('error');
+                    } else if (type === 'success') {
+                        audioSystem.play('success');
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erro ao inicializar o jogo:', error);
+                // Fallback simples em caso de erro
+                document.body.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: white;">
+                        <h2>Erro ao carregar o jogo</h2>
+                        <p>Por favor, recarregue a página.</p>
+                        <button onclick="location.reload()" style="padding: 1rem 2rem; font-size: 1rem;">
+                            Recarregar
+                        </button>
+                    </div>
+                `;
+            }
         });
     </script>
     

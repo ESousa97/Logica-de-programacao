@@ -12,7 +12,6 @@ export class DifficultySelector {
     this.currentDifficulty = 'easy';
     this.isLocked = false;
     this.unlocked = ['easy'];
-    this.animationQueue = [];
     this.init();
   }
 
@@ -27,7 +26,6 @@ export class DifficultySelector {
 
     this.loadSavedDifficulty();
     this.loadUnlockedDifficulties();
-    this.render();
     this.setupEventListeners();
     this.updateDisplay();
 
@@ -56,103 +54,37 @@ export class DifficultySelector {
   }
 
   /**
-   * Renderizar seletor de dificuldade
-   */
-  render() {
-    this.container.innerHTML = `
-      <div class="difficulty-selector-content">
-        <!-- Cabeçalho -->
-        <div class="difficulty-header" id="difficultyHeader">
-          <div class="header-content">
-            <h3 class="section-title">
-              <span class="title-icon"></span>
-              <span class="title-text">Escolha a Dificuldade</span>
-            </h3>
-            <div class="difficulty-info" id="difficultyInfo">
-              <span class="info-text">Selecione o nível de desafio</span>
-            </div>
-          </div>
-          <div class="difficulty-stats" id="difficultyStats">
-            <div class="stat-item">
-              <span class="stat-icon"></span>
-              <span class="stat-value" id="currentRange">1-10</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-icon"></span>
-              <span class="stat-value" id="currentAttempts">5</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-icon"></span>
-              <span class="stat-value" id="currentMultiplier">1x</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Seletor de Dificuldades -->
-        <div class="difficulty-grid" id="difficultyGrid"></div>
-
-        <!-- Informações Detalhadas -->
-        <div class="difficulty-details" id="difficultyDetails">
-          <div class="details-card">
-            <div class="card-header">
-              <span class="card-icon" id="detailsIcon"></span>
-              <span class="card-title" id="detailsTitle"></span>
-              <span class="card-badge" id="detailsBadge"></span>
-            </div>
-            <div class="card-content">
-              <div class="detail-description" id="detailsDescription"></div>
-              <div class="detail-features" id="detailsFeatures"></div>
-              <div class="detail-rewards" id="detailsRewards"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sistema de Desbloqueio -->
-        <div class="unlock-system" id="unlockSystem">
-          <div class="unlock-progress">
-            <div class="progress-header">
-              <span class="progress-icon"></span>
-              <span class="progress-title">Progresso de Desbloqueio</span>
-            </div>
-            <div class="unlock-tracks" id="unlockTracks"></div>
-          </div>
-        </div>
-
-        <!-- Histórico de Performance -->
-        <div class="performance-history" id="performanceHistory">
-          <h5 class="history-title"></h5>
-          <div class="history-grid" id="historyGrid"></div>
-        </div>
-
-        <!-- Dicas de Estratégia -->
-        <div class="strategy-tips" id="strategyTips">
-          <h5 class="tips-title"></h5>
-          <div class="tips-container" id="tipsContainer">
-            <div class="tip-card active" id="currentTip"></div>
-          </div>
-          <div class="tips-navigation">
-            <button class="tip-nav-btn" id="prevTipBtn">‹</button>
-            <div class="tip-indicators" id="tipIndicators"></div>
-            <button class="tip-nav-btn" id="nextTipBtn">›</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    this.container.classList.add('difficulty-selector-component');
-  }
-
-  /**
    * Configurar event listeners
    */
   setupEventListeners() {
-    const prevTipBtn = document.getElementById('prevTipBtn');
-    const nextTipBtn = document.getElementById('nextTipBtn');
+    // Event listeners para os botões de dificuldade existentes no HTML
+    const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+    difficultyButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const difficulty = btn.dataset.difficulty;
+        if (this.unlocked.includes(difficulty) && !this.isLocked) {
+          this.selectDifficulty(difficulty);
+        } else if (!this.unlocked.includes(difficulty)) {
+          this.showUnlockRequirements(difficulty);
+        }
+      });
 
-    prevTipBtn?.addEventListener('click', () => this.showPreviousTip());
-    nextTipBtn?.addEventListener('click', () => this.showNextTip());
+      btn.addEventListener('mouseenter', () => {
+        const difficulty = btn.dataset.difficulty;
+        if (this.unlocked.includes(difficulty)) {
+          this.showDifficultyPreview(difficulty);
+        }
+      });
 
-    this.startTipsRotation();
+      btn.addEventListener('mouseleave', () => {
+        this.hideDifficultyPreview();
+      });
+    });
+
+    // Escutar eventos de mudança de dificuldade
+    document.addEventListener('difficultyChanged', (e) => {
+      this.handleExternalDifficultyChange(e.detail);
+    });
 
     ConfigManager.log('Event listeners do difficulty selector configurados');
   }
@@ -161,62 +93,9 @@ export class DifficultySelector {
    * Atualizar display
    */
   updateDisplay() {
-    this.generateDifficultyButtons();
+    this.updateActiveButton();
     this.updateCurrentDifficultyInfo();
-    this.updateUnlockTracks();
-    this.updatePerformanceHistory();
-    this.generateStrategyTips();
-  }
-
-  /**
-   * Gerar botões de dificuldade
-   */
-  generateDifficultyButtons() {
-    const difficultyGrid = document.getElementById('difficultyGrid');
-    if (!difficultyGrid) return;
-
-    difficultyGrid.innerHTML = '';
-
-    Object.entries(GameConfig.DIFFICULTY_LEVELS).forEach(([key, config]) => {
-      const isUnlocked = this.unlocked.includes(key);
-      const isActive = key === this.currentDifficulty;
-      const isLocked = this.isLocked && !isActive;
-
-      const button = document.createElement('button');
-      button.className = `difficulty-btn ${isActive ? 'active' : ''} ${!isUnlocked ? 'locked' : ''} ${isLocked ? 'disabled' : ''}`;
-      button.dataset.difficulty = key;
-
-      button.innerHTML = `
-        <div class="btn-header">
-          <div class="btn-icon">${config.emoji}</div>
-          <div class="btn-name">${config.name}</div>
-          ${!isUnlocked ? '<div class="lock-icon">🔒</div>' : ''}
-        </div>
-        <div class="btn-details">
-          <div class="detail-range">${config.min}-${config.max}</div>
-          <div class="detail-attempts">${config.maxAttempts} tentativas</div>
-          <div class="detail-multiplier">${config.scoreMultiplier}x pontos</div>
-        </div>
-        <div class="btn-footer">
-          ${isUnlocked ? 
-            `<div class="btn-status">Disponível</div>` : 
-            `<div class="btn-unlock-req">Ganhe ${this.getUnlockRequirement(key)} jogos</div>`
-          }
-        </div>
-        ${isActive ? '<div class="active-indicator"></div>' : ''}
-        ${!isUnlocked ? '<div class="locked-overlay"></div>' : ''}
-      `;
-
-      if (isUnlocked && !isLocked) {
-        button.addEventListener('click', () => this.selectDifficulty(key));
-        button.addEventListener('mouseenter', () => this.showDifficultyPreview(key));
-        button.addEventListener('mouseleave', () => this.hideDifficultyPreview());
-      } else if (!isUnlocked) {
-        button.addEventListener('click', () => this.showUnlockRequirements(key));
-      }
-
-      difficultyGrid.appendChild(button);
-    });
+    this.updateButtonStates();
   }
 
   /**
@@ -232,11 +111,12 @@ export class DifficultySelector {
 
     ConfigManager.setCurrentDifficulty(difficulty);
 
-    this.updateActiveButton(difficulty);
+    this.updateActiveButton();
     this.updateCurrentDifficultyInfo();
 
     this.playSelectionEffect(difficulty);
 
+    // Disparar evento de mudança de dificuldade
     document.dispatchEvent(new CustomEvent('difficultyChanged', {
       detail: { 
         difficulty,
@@ -251,22 +131,21 @@ export class DifficultySelector {
   /**
    * Atualizar botão ativo
    */
-  updateActiveButton(difficulty) {
+  updateActiveButton() {
     document.querySelectorAll('.difficulty-btn').forEach(btn => {
       btn.classList.remove('active');
-    });
+      
+      if (btn.dataset.difficulty === this.currentDifficulty) {
+        btn.classList.add('active');
 
-    const selectedBtn = document.querySelector(`[data-difficulty="${difficulty}"]`);
-    if (selectedBtn) {
-      selectedBtn.classList.add('active');
-
-      if (GameConfig.ANIMATIONS.enabled) {
-        selectedBtn.style.transform = 'scale(1.05)';
-        setTimeout(() => {
-          selectedBtn.style.transform = '';
-        }, 200);
+        if (GameConfig.ANIMATIONS.enabled) {
+          btn.style.transform = 'scale(1.05)';
+          setTimeout(() => {
+            btn.style.transform = '';
+          }, 200);
+        }
       }
-    }
+    });
   }
 
   /**
@@ -276,6 +155,7 @@ export class DifficultySelector {
     const config = GameConfig.DIFFICULTY_LEVELS[this.currentDifficulty];
     if (!config) return;
 
+    // Atualizar estatísticas da dificuldade no header
     const currentRange = document.getElementById('currentRange');
     const currentAttempts = document.getElementById('currentAttempts');
     const currentMultiplier = document.getElementById('currentMultiplier');
@@ -283,311 +163,93 @@ export class DifficultySelector {
     if (currentRange) currentRange.textContent = `${config.min}-${config.max}`;
     if (currentAttempts) currentAttempts.textContent = config.maxAttempts;
     if (currentMultiplier) currentMultiplier.textContent = `${config.scoreMultiplier}x`;
-
-    this.updateDetailsCard(config);
   }
 
   /**
-   * Atualizar card de detalhes
+   * Atualizar estados dos botões
    */
-  updateDetailsCard(config) {
-    const detailsIcon = document.getElementById('detailsIcon');
-    const detailsTitle = document.getElementById('detailsTitle');
-    const detailsBadge = document.getElementById('detailsBadge');
-    const detailsDescription = document.getElementById('detailsDescription');
-    const detailsFeatures = document.getElementById('detailsFeatures');
-    const detailsRewards = document.getElementById('detailsRewards');
-
-    if (detailsIcon) detailsIcon.textContent = config.emoji;
-    if (detailsTitle) detailsTitle.textContent = config.name;
-
-    const badges = {
-      easy: 'Recomendado',
-      medium: 'Equilibrado',
-      hard: 'Desafiador',
-      expert: 'Extremo'
-    };
-    if (detailsBadge) detailsBadge.textContent = badges[this.currentDifficulty] || '';
-
-    const descriptions = {
-      easy: 'Perfeito para iniciantes. Números entre 1 e 10 com 5 tentativas.',
-      medium: 'Dificuldade balanceada. Números entre 1 e 100 com 8 tentativas.',
-      hard: 'Para jogadores experientes. Números entre 1 e 1000 com 12 tentativas.',
-      expert: 'O desafio supremo. Números entre 1 e 5000 com 15 tentativas.'
-    };
-    if (detailsDescription) {
-      detailsDescription.textContent = descriptions[this.currentDifficulty] || '';
-    }
-
-    this.updateFeatures(config);
-    this.updateRewards(config);
-  }
-
-  /**
-   * Atualizar features
-   */
-  updateFeatures(config) {
-    const detailsFeatures = document.getElementById('detailsFeatures');
-    if (!detailsFeatures) return;
-
-    const features = this.getDifficultyFeatures(this.currentDifficulty);
-
-    detailsFeatures.innerHTML = features.map(feature => `
-      <div class="feature-item">
-        <span class="feature-icon">${feature.icon}</span>
-        <span class="feature-text">${feature.text}</span>
-      </div>
-    `).join('');
-  }
-
-  /**
-   * Atualizar recompensas
-   */
-  updateRewards(config) {
-    const detailsRewards = document.getElementById('detailsRewards');
-    if (!detailsRewards) return;
-
-    const baseReward = 1000 * config.scoreMultiplier;
-    const rewards = [
-      `+${Utils.formatScore(baseReward)} pontos base`,
-      `Multiplicador ${config.scoreMultiplier}x`,
-      this.currentDifficulty === 'expert' ? 'Conquistas exclusivas' : 'Conquistas progressivas'
-    ];
-
-    detailsRewards.innerHTML = `
-      <h5 class="rewards-title">Recompensas:</h5>
-      <div class="rewards-list">
-        ${rewards.map(reward => `<span class="reward-item">${reward}</span>`).join('')}
-      </div>
-    `;
-  }
-
-  /**
-   * Atualizar trilhas de desbloqueio
-   */
-  updateUnlockTracks() {
-    const unlockTracks = document.getElementById('unlockTracks');
-    if (!unlockTracks) return;
-
-    const difficulties = Object.keys(GameConfig.DIFFICULTY_LEVELS);
-    unlockTracks.innerHTML = '';
-
-    difficulties.forEach((difficulty, index) => {
+  updateButtonStates() {
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      const difficulty = btn.dataset.difficulty;
       const isUnlocked = this.unlocked.includes(difficulty);
-      const requirement = this.getUnlockRequirement(difficulty);
-      const progress = this.getUnlockProgress(difficulty);
+      const isActive = difficulty === this.currentDifficulty;
+      const isLocked = this.isLocked && !isActive;
 
-      const track = document.createElement('div');
-      track.className = `unlock-track ${isUnlocked ? 'unlocked' : 'locked'}`;
-      track.innerHTML = `
-        <div class="track-icon">${GameConfig.DIFFICULTY_LEVELS[difficulty].emoji}</div>
-        <div class="track-content">
-          <div class="track-name">${GameConfig.DIFFICULTY_LEVELS[difficulty].name}</div>
-          <div class="track-requirement">
-            ${isUnlocked ? 'Desbloqueado' : `Ganhe ${requirement} jogos`}
-          </div>
-          ${!isUnlocked ? `
-            <div class="track-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${progress}%"></div>
-              </div>
-              <span class="progress-text">${progress}%</span>
-            </div>
-          ` : ''}
-        </div>
-        ${index < difficulties.length - 1 ? '<div class="track-connector"></div>' : ''}
-      `;
+      // Remover classes existentes
+      btn.classList.remove('locked', 'disabled');
 
-      unlockTracks.appendChild(track);
-    });
-  }
-
-  /**
-   * Atualizar histórico de performance
-   */
-  updatePerformanceHistory() {
-    const historyGrid = document.getElementById('historyGrid');
-    if (!historyGrid) return;
-
-    const stats = JSON.parse(localStorage.getItem(GameConfig.STORAGE.keys.stats) || '{}');
-    const byDifficulty = stats.byDifficulty || {};
-
-    historyGrid.innerHTML = '';
-
-    Object.entries(GameConfig.DIFFICULTY_LEVELS).forEach(([key, config]) => {
-      const diffStats = byDifficulty[key] || { played: 0, won: 0, bestScore: 0 };
-      const winRate = diffStats.played > 0 ? ((diffStats.won / diffStats.played) * 100).toFixed(1) : '0.0';
-      const isUnlocked = this.unlocked.includes(key);
-
-      const historyCard = document.createElement('div');
-      historyCard.className = `history-card ${!isUnlocked ? 'locked' : ''}`;
-      historyCard.innerHTML = `
-        <div class="history-header">
-          <span class="history-emoji">${config.emoji}</span>
-          <span class="history-name">${config.name}</span>
-        </div>
-        ${isUnlocked ? `
-          <div class="history-stats">
-            <div class="history-stat">
-              <span class="stat-label">Jogados:</span>
-              <span class="stat-value">${diffStats.played}</span>
-            </div>
-            <div class="history-stat">
-              <span class="stat-label">Ganhos:</span>
-              <span class="stat-value">${diffStats.won}</span>
-            </div>
-            <div class="history-stat">
-              <span class="stat-label">Taxa:</span>
-              <span class="stat-value">${winRate}%</span>
-            </div>
-            <div class="history-stat">
-              <span class="stat-label">Melhor:</span>
-              <span class="stat-value">${Utils.formatScore(diffStats.bestScore)}</span>
-            </div>
-          </div>
-          <div class="history-progress">
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${winRate}%; background: ${config.color}"></div>
-            </div>
-          </div>
-        ` : `
-          <div class="locked-message">
-            <div class="lock-icon">🔒</div>
-            <div class="lock-text">Desbloqueie para ver estatísticas</div>
-          </div>
-        `}
-      `;
-
-      historyGrid.appendChild(historyCard);
-    });
-  }
-
-  /**
-   * Gerar dicas de estratégia
-   */
-  generateStrategyTips() {
-    this.strategyTips = [
-      {
-        icon: '🎯',
-        title: 'Estratégia Binária',
-        description: 'Comece sempre pelo meio do intervalo para eliminar metade das possibilidades.'
-      },
-      {
-        icon: '🧠',
-        title: 'Memorize Padrões',
-        description: 'Observe os padrões de números que aparecem com mais frequência.'
-      },
-      {
-        icon: '⏱️',
-        title: 'Gestão de Tempo',
-        description: 'Não se apresse. Pense bem antes de cada tentativa para maximizar a pontuação.'
-      },
-      {
-        icon: '💡',
-        title: 'Use Dicas Sabiamente',
-        description: 'Economize dicas para momentos cruciais ou quando estiver com poucas tentativas.'
-      },
-      {
-        icon: '📊',
-        title: 'Análise de Proximidade',
-        description: 'Preste atenção às dicas de "quente" e "frio" para ajustar sua estratégia.'
+      // Adicionar classes conforme estado
+      if (!isUnlocked) {
+        btn.classList.add('locked');
+        this.updateButtonForLocked(btn, difficulty);
+      } else if (isLocked) {
+        btn.classList.add('disabled');
       }
-    ];
 
-    this.currentTipIndex = 0;
-    this.updateTipIndicators();
-    this.showCurrentTip();
+      // Atualizar conteúdo do botão se necessário
+      if (isUnlocked) {
+        this.updateButtonForUnlocked(btn, difficulty);
+      }
+    });
   }
 
   /**
-   * Mostrar dica atual
+   * Atualizar botão para estado bloqueado
    */
-  showCurrentTip() {
-    const currentTip = document.getElementById('currentTip');
-    if (!currentTip || !this.strategyTips) return;
+  updateButtonForLocked(btn, difficulty) {
+    const footer = btn.querySelector('.btn-footer .btn-status');
+    if (footer) {
+      const requirement = this.getUnlockRequirement(difficulty);
+      footer.textContent = `Ganhe ${requirement} jogos`;
+    }
 
-    const tip = this.strategyTips[this.currentTipIndex];
-
-    currentTip.innerHTML = `
-      <div class="tip-icon">${tip.icon}</div>
-      <div class="tip-content">
-        <div class="tip-title">${tip.title}</div>
-        <div class="tip-description">${tip.description}</div>
-      </div>
-    `;
-
-    if (GameConfig.ANIMATIONS.enabled) {
-      currentTip.style.opacity = '0';
-      currentTip.style.transform = 'translateX(20px)';
-
-      requestAnimationFrame(() => {
-        currentTip.style.transition = 'all 0.3s ease';
-        currentTip.style.opacity = '1';
-        currentTip.style.transform = 'translateX(0)';
-      });
+    // Adicionar ícone de cadeado se não existir
+    let lockIcon = btn.querySelector('.lock-icon');
+    if (!lockIcon) {
+      lockIcon = document.createElement('div');
+      lockIcon.className = 'lock-icon';
+      lockIcon.textContent = '🔒';
+      btn.querySelector('.btn-header').appendChild(lockIcon);
     }
   }
 
   /**
-   * Próxima dica
+   * Atualizar botão para estado desbloqueado
    */
-  showNextTip() {
-    if (!this.strategyTips) return;
-
-    this.currentTipIndex = (this.currentTipIndex + 1) % this.strategyTips.length;
-    this.showCurrentTip();
-    this.updateTipIndicators();
-  }
-
-  /**
-   * Dica anterior
-   */
-  showPreviousTip() {
-    if (!this.strategyTips) return;
-
-    this.currentTipIndex = this.currentTipIndex === 0 ?
-      this.strategyTips.length - 1 :
-      this.currentTipIndex - 1;
-    this.showCurrentTip();
-    this.updateTipIndicators();
-  }
-
-  /**
-   * Atualizar indicadores de dicas
-   */
-  updateTipIndicators() {
-    const tipIndicators = document.getElementById('tipIndicators');
-    if (!tipIndicators || !this.strategyTips) return;
-
-    tipIndicators.innerHTML = this.strategyTips.map((_, index) =>
-      `<div class="tip-indicator ${index === this.currentTipIndex ? 'active' : ''}"></div>`
-    ).join('');
-  }
-
-  /**
-   * Iniciar rotação automática de dicas
-   */
-  startTipsRotation() {
-    if (this.tipsInterval) {
-      clearInterval(this.tipsInterval);
+  updateButtonForUnlocked(btn) {
+    const footer = btn.querySelector('.btn-footer .btn-status');
+    if (footer) {
+      footer.textContent = 'Disponível';
     }
 
-    this.tipsInterval = setInterval(() => {
-      this.showNextTip();
-    }, 8000);
+    // Remover ícone de cadeado se existir
+    const lockIcon = btn.querySelector('.lock-icon');
+    if (lockIcon) {
+      lockIcon.remove();
+    }
   }
 
   /**
    * Mostrar preview da dificuldade
    */
   showDifficultyPreview(difficulty) {
-    ConfigManager.log('Preview da dificuldade:', difficulty);
+    const config = GameConfig.DIFFICULTY_LEVELS[difficulty];
+    
+    // Criar tooltip com informações da dificuldade
+    this.showTooltip(difficulty, `
+      ${config.name}
+      Intervalo: ${config.min}-${config.max}
+      Tentativas: ${config.maxAttempts}
+      Multiplicador: ${config.scoreMultiplier}x
+    `);
   }
 
   /**
    * Esconder preview da dificuldade
    */
-  hideDifficultyPreview() {}
+  hideDifficultyPreview() {
+    this.hideTooltip();
+  }
 
   /**
    * Mostrar requisitos de desbloqueio
@@ -595,41 +257,27 @@ export class DifficultySelector {
   showUnlockRequirements(difficulty) {
     const requirement = this.getUnlockRequirement(difficulty);
     const progress = this.getUnlockProgress(difficulty);
+    const config = GameConfig.DIFFICULTY_LEVELS[difficulty];
 
-    const modal = document.createElement('div');
-    modal.className = 'unlock-modal';
-    modal.innerHTML = `
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>${GameConfig.DIFFICULTY_LEVELS[difficulty].name} Bloqueado</h3>
-          <button class="modal-close">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="unlock-info">
-            <div class="unlock-icon">${GameConfig.DIFFICULTY_LEVELS[difficulty].emoji}</div>
-            <div class="unlock-details">
-              <p>Para desbloquear este nível, você precisa:</p>
-              <div class="requirement">Ganhar ${requirement} jogos</div>
-              <div class="progress-section">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${progress}%"></div>
-                </div>
-                <div class="progress-text">${progress}% completo</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    // Criar mensagem de requisito
+    const message = `
+      Para desbloquear ${config.name}, você precisa ganhar ${requirement} jogos.
+      Progresso atual: ${Math.floor(progress)}%
     `;
 
-    document.body.appendChild(modal);
+    // Disparar evento de mensagem
+    document.dispatchEvent(new CustomEvent('gameMessage', {
+      detail: {
+        text: message,
+        type: 'info',
+        options: { duration: 4000 }
+      }
+    }));
 
-    modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
-    });
-
-    setTimeout(() => modal.remove(), 5000);
+    // Tocar som de erro
+    if (window.audioManager) {
+      window.audioManager.play('error');
+    }
   }
 
   /**
@@ -660,48 +308,17 @@ export class DifficultySelector {
   }
 
   /**
-   * Obter features da dificuldade
-   */
-  getDifficultyFeatures(difficulty) {
-    const features = {
-      easy: [
-        { icon: '🎯', text: 'Intervalo pequeno' },
-        { icon: '⏱️', text: 'Sem pressão de tempo' },
-        { icon: '💡', text: 'Dicas disponíveis' }
-      ],
-      medium: [
-        { icon: '⚖️', text: 'Equilibrio perfeito' },
-        { icon: '🧠', text: 'Requer estratégia' },
-        { icon: '⭐', text: 'Bônus moderados' }
-      ],
-      hard: [
-        { icon: '🔥', text: 'Desafio intenso' },
-        { icon: '💎', text: 'Recompensas maiores' },
-        { icon: '🎖️', text: 'Para especialistas' }
-      ],
-      expert: [
-        { icon: '👑', text: 'Dificuldade suprema' },
-        { icon: '🏆', text: 'Máximas recompensas' },
-        { icon: '🌟', text: 'Conquistas exclusivas' }
-      ]
-    };
-
-    return features[difficulty] || [];
-  }
-
-  /**
    * Efeito de seleção
    */
   playSelectionEffect(difficulty) {
     if (!GameConfig.ANIMATIONS.enabled) return;
 
-    Utils.playBeep({
-      easy: 800,
-      medium: 900,
-      hard: 1000,
-      expert: 1200
-    }[difficulty] || 800, 200);
+    // Tocar beep baseado na dificuldade
+    if (window.audioManager) {
+      window.audioManager.play('click');
+    }
 
+    // Vibração baseada na dificuldade
     Utils.vibrate({
       easy: [50],
       medium: [50, 50, 50],
@@ -719,10 +336,21 @@ export class DifficultySelector {
     this.unlocked.push(difficulty);
     this.saveUnlockedDifficulties();
 
-    this.updateDisplay();
+    this.updateButtonStates();
 
+    // Disparar evento de desbloqueio
     document.dispatchEvent(new CustomEvent('difficultyUnlocked', {
       detail: { difficulty }
+    }));
+
+    // Mostrar mensagem de desbloqueio
+    const config = GameConfig.DIFFICULTY_LEVELS[difficulty];
+    document.dispatchEvent(new CustomEvent('gameMessage', {
+      detail: {
+        text: `Parabéns! Você desbloqueou a dificuldade ${config.name}!`,
+        type: 'success',
+        options: { duration: 5000 }
+      }
     }));
 
     ConfigManager.log('Dificuldade desbloqueada:', difficulty);
@@ -740,14 +368,7 @@ export class DifficultySelector {
    */
   setLocked(locked) {
     this.isLocked = locked;
-
-    document.querySelectorAll('.difficulty-btn').forEach(btn => {
-      if (locked && !btn.classList.contains('active')) {
-        btn.classList.add('disabled');
-      } else {
-        btn.classList.remove('disabled');
-      }
-    });
+    this.updateButtonStates();
 
     if (locked) {
       this.container.classList.add('locked');
@@ -757,11 +378,60 @@ export class DifficultySelector {
   }
 
   /**
+   * Lidar com mudança externa de dificuldade
+   */
+  handleExternalDifficultyChange(detail) {
+    if (detail.difficulty !== this.currentDifficulty) {
+      this.currentDifficulty = detail.difficulty;
+      this.updateDisplay();
+    }
+  }
+
+  /**
+   * Mostrar tooltip
+   */
+  showTooltip(difficulty, text) {
+    let tooltip = document.getElementById('difficultyTooltip');
+    
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'difficultyTooltip';
+      tooltip.className = 'difficulty-tooltip';
+      document.body.appendChild(tooltip);
+    }
+
+    tooltip.innerHTML = text.trim().split('\n').map(line => `<div>${line.trim()}</div>`).join('');
+    tooltip.style.display = 'block';
+    tooltip.style.opacity = '1';
+
+    // Posicionar tooltip
+    const btn = document.querySelector(`[data-difficulty="${difficulty}"]`);
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      tooltip.style.left = rect.left + 'px';
+      tooltip.style.top = (rect.bottom + 10) + 'px';
+    }
+  }
+
+  /**
+   * Esconder tooltip
+   */
+  hideTooltip() {
+    const tooltip = document.getElementById('difficultyTooltip');
+    if (tooltip) {
+      tooltip.style.display = 'none';
+    }
+  }
+
+  /**
    * Limpar recursos
    */
   destroy() {
-    if (this.tipsInterval) {
-      clearInterval(this.tipsInterval);
+    this.hideTooltip();
+    
+    const tooltip = document.getElementById('difficultyTooltip');
+    if (tooltip) {
+      tooltip.remove();
     }
 
     ConfigManager.log('Difficulty Selector destruído');
@@ -772,6 +442,7 @@ export class DifficultySelector {
 document.addEventListener('DOMContentLoaded', () => {
   window.difficultySelector = new DifficultySelector();
 
+  // Escutar atualizações de estatísticas para desbloquear dificuldades
   document.addEventListener('statsUpdated', (e) => {
     const stats = e.detail.stats;
     if (window.difficultySelector && stats.gamesWon) {
@@ -787,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Escutar mudanças de estado do jogo para bloquear/desbloquear seletor
   document.addEventListener('gameStateChanged', (e) => {
     const { isPlaying } = e.detail.gameState;
     if (window.difficultySelector) {

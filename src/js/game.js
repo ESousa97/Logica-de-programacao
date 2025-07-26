@@ -3,8 +3,9 @@
  * Arquivo: src/js/game.js
  */
 
+/* global gtag */
+
 import { GameConfig, ConfigManager } from './config.js';
-import { Utils } from './utils.js';
 
 export class GameLogic {
   constructor(storageManager, uiManager) {
@@ -39,6 +40,10 @@ export class GameLogic {
       longestStreak: 0
     };
 
+    // Timer para o jogo
+    this.gameTimer = null;
+    this.gameTimeElapsed = 0;
+
     this.init();
   }
 
@@ -48,12 +53,11 @@ export class GameLogic {
   init() {
     ConfigManager.log('Inicializando lógica do jogo...');
     
-    // Carregar configurações e estatísticas
     this.loadGameState();
     this.setupEventListeners();
     this.setupKeyboardShortcuts();
+    this.setupCustomEvents();
     
-    // Inicializar novo jogo
     this.newGame();
     
     ConfigManager.log('Jogo inicializado com sucesso!');
@@ -64,14 +68,9 @@ export class GameLogic {
    */
   loadGameState() {
     try {
-      // Carregar dificuldade
       this.gameState.difficulty = ConfigManager.getCurrentDifficulty();
-      
-      // Carregar estatísticas
       const stats = this.storage.getStats();
       this.sessionStats = { ...this.sessionStats, ...stats };
-      
-      // Carregar streak atual
       this.gameState.streak = stats.currentStreak || 0;
       
       ConfigManager.log('Estado carregado:', this.gameState);
@@ -84,17 +83,14 @@ export class GameLogic {
    * Configurar listeners de eventos
    */
   setupEventListeners() {
-    // Botão de enviar palpite
     document.getElementById('submitBtn')?.addEventListener('click', () => {
       this.makeGuess();
     });
 
-    // Botão de novo jogo
     document.getElementById('newGameBtn')?.addEventListener('click', () => {
       this.newGame();
     });
 
-    // Input de número (Enter para enviar)
     const numberInput = document.getElementById('numberInput');
     numberInput?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -102,19 +98,16 @@ export class GameLogic {
       }
     });
 
-    // Validação em tempo real
     numberInput?.addEventListener('input', (e) => {
       this.validateInput(e.target);
     });
 
-    // Seletores de dificuldade
     document.querySelectorAll('.difficulty-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.changeDifficulty(btn.dataset.difficulty);
       });
     });
 
-    // Modal de vitória
     document.getElementById('playAgainBtn')?.addEventListener('click', () => {
       this.closeVictoryModal();
       this.newGame();
@@ -124,11 +117,27 @@ export class GameLogic {
       this.closeVictoryModal();
     });
 
-    // Fechar modal clicando no overlay
     document.getElementById('victoryModal')?.addEventListener('click', (e) => {
       if (e.target.id === 'victoryModal') {
         this.closeVictoryModal();
       }
+    });
+
+    // Event listeners para botões de header
+    document.getElementById('settingsBtn')?.addEventListener('click', () => {
+      this.openSettings();
+    });
+
+    document.getElementById('statsBtn')?.addEventListener('click', () => {
+      this.openDetailedStats();
+    });
+
+    document.getElementById('helpBtn')?.addEventListener('click', () => {
+      this.openHelp();
+    });
+
+    document.getElementById('themeBtn')?.addEventListener('click', () => {
+      this.cycleTheme();
     });
   }
 
@@ -139,7 +148,6 @@ export class GameLogic {
     if (!GameConfig.UI.keyboardShortcuts) return;
 
     document.addEventListener('keydown', (e) => {
-      // Ignorar se modal estiver aberto ou input focado
       if (document.getElementById('victoryModal').style.display === 'block') return;
       if (document.activeElement.tagName === 'INPUT') return;
 
@@ -159,12 +167,38 @@ export class GameLogic {
         case '1':
         case '2':
         case '3':
-        case '4':
+        case '4': {
           e.preventDefault();
           const difficulties = ['easy', 'medium', 'hard', 'expert'];
-          this.changeDifficulty(difficulties[parseInt(e.key) - 1]);
+          this.changeDifficulty(difficulties[parseInt(e.key, 10) - 1]);
           break;
+        }
       }
+    });
+  }
+
+  /**
+   * Configurar eventos customizados
+   */
+  setupCustomEvents() {
+    // Escutar eventos de mudança de dificuldade
+    document.addEventListener('difficultyChanged', () => {
+      this.handleDifficultyChange();
+    });
+
+    // Escutar eventos de guess submetido
+    document.addEventListener('guessSubmitted', () => {
+      this.handleGuessFromInput();
+    });
+
+    // Escutar eventos de novo jogo solicitado
+    document.addEventListener('newGameRequested', () => {
+      this.newGame();
+    });
+
+    // Escutar eventos de dica solicitada
+    document.addEventListener('hintRequested', () => {
+      this.showHint();
     });
   }
 
@@ -177,7 +211,6 @@ export class GameLogic {
     try {
       const difficultyConfig = ConfigManager.getDifficultyConfig(this.gameState.difficulty);
       
-      // Resetar estado do jogo
       this.gameState = {
         ...this.gameState,
         isPlaying: true,
@@ -189,25 +222,34 @@ export class GameLogic {
         maxAttempts: difficultyConfig.maxAttempts,
         startTime: Date.now(),
         endTime: null,
-        score: 0,
+        score: GameConfig.SCORING.baseScore * difficultyConfig.scoreMultiplier,
         hints: 0
       };
 
-      // Atualizar UI
-      this.ui.updateGameInfo(this.gameState, difficultyConfig);
-      this.ui.resetInput();
-      this.ui.showMessage('Novo jogo iniciado! Boa sorte! 🍀', 'info');
-      this.ui.focusInput();
+      this.gameTimeElapsed = 0;
+      this.startGameTimer();
 
-      // Debug: mostrar número secreto se habilitado
+      this.updateUI();
+      this.resetInput();
+      this.showGameMessage('Novo jogo iniciado! Boa sorte!', 'info');
+      this.focusInput();
+
+      // Disparar evento de início de jogo
+      this.dispatchGameEvent('gameStarted', {
+        difficulty: this.gameState.difficulty,
+        config: difficultyConfig
+      });
+
+      // Atualizar estado dos controles
+      this.dispatchGameEvent('gameStateChanged', {
+        gameState: this.gameState
+      });
+
       if (ConfigManager.isDebugEnabled() && GameConfig.DEBUG.showSecretNumber) {
-        console.log('🎯 Número secreto:', this.gameState.secretNumber);
+        // eslint-disable-next-line no-console
+        console.log('Número secreto:', this.gameState.secretNumber);
       }
 
-      // Audio
-      this.playSound('newGame');
-
-      // Analytics
       this.trackEvent('game_start', {
         difficulty: this.gameState.difficulty,
         secretNumber: this.gameState.secretNumber
@@ -216,7 +258,7 @@ export class GameLogic {
       ConfigManager.log('Novo jogo iniciado:', this.gameState);
     } catch (error) {
       ConfigManager.error('Erro ao iniciar novo jogo:', error);
-      this.ui.showMessage('Erro ao iniciar jogo. Tente novamente.', 'error');
+      this.showGameMessage('Erro ao iniciar jogo. Tente novamente.', 'error');
     }
   }
 
@@ -227,12 +269,11 @@ export class GameLogic {
     const { min, max } = difficultyConfig;
     let secretNumber;
     
-    // Easter egg: verificar números especiais
     if (GameConfig.EASTER_EGGS.enabled) {
-      const isSpecialNumber = Math.random() < 0.05; // 5% de chance
+      const isSpecialNumber = Math.random() < 0.05;
       if (isSpecialNumber) {
         const specialNumbers = GameConfig.EASTER_EGGS.secretNumbers.filter(
-          num => num >= min && num <= max
+          (num) => num >= min && num <= max,
         );
         if (specialNumbers.length > 0) {
           secretNumber = specialNumbers[Math.floor(Math.random() * specialNumbers.length)];
@@ -242,7 +283,6 @@ export class GameLogic {
       }
     }
     
-    // Gerar número normal
     secretNumber = Math.floor(Math.random() * (max - min + 1)) + min;
     return secretNumber;
   }
@@ -252,37 +292,38 @@ export class GameLogic {
    */
   makeGuess() {
     if (!this.gameState.isPlaying || this.gameState.isGameOver) {
-      this.ui.showMessage('Jogo não está ativo!', 'warning');
+      this.showGameMessage('Jogo não está ativo!', 'warning');
+      this.playSound('error');
       return;
     }
 
     const input = document.getElementById('numberInput');
-    const guess = parseInt(input.value);
+    const guess = parseInt(input.value, 10);
 
-    // Validar entrada
     if (!this.validateGuess(guess)) {
       return;
     }
 
     this.gameState.currentGuess = guess;
     this.gameState.attempts++;
+    this.gameState.score -= GameConfig.SCORING.penaltyPerAttempt;
 
     ConfigManager.log(`Tentativa ${this.gameState.attempts}: ${guess}`);
 
-    // Verificar se acertou
     if (guess === this.gameState.secretNumber) {
       this.handleCorrectGuess();
     } else {
       this.handleIncorrectGuess(guess);
     }
 
-    // Atualizar UI
-    this.ui.updateGameInfo(this.gameState, ConfigManager.getDifficultyConfig(this.gameState.difficulty));
+    this.updateUI();
     
-    // Verificar fim de jogo por tentativas
     if (this.gameState.attempts >= this.gameState.maxAttempts && !this.gameState.isGameOver) {
       this.handleGameOver();
     }
+
+    this.clearInput();
+    this.focusInput();
   }
 
   /**
@@ -293,15 +334,18 @@ export class GameLogic {
 
     this.gameState.isGameOver = true;
     this.gameState.endTime = Date.now();
+    this.stopGameTimer();
     
-    // Calcular pontuação
     const timeElapsed = this.gameState.endTime - this.gameState.startTime;
-    this.gameState.score = ConfigManager.calculateScore(
-      this.gameState.attempts,
-      timeElapsed,
-      this.gameState.difficulty,
-      this.gameState.streak
-    );
+    
+    // Calcular bônus de tempo
+    if (timeElapsed < 10000) {
+      this.gameState.score += GameConfig.SCORING.timeBonus.under10s;
+    } else if (timeElapsed < 30000) {
+      this.gameState.score += GameConfig.SCORING.timeBonus.under30s;
+    } else if (timeElapsed < 60000) {
+      this.gameState.score += GameConfig.SCORING.timeBonus.under60s;
+    }
 
     // Atualizar streak
     this.gameState.streak++;
@@ -311,37 +355,52 @@ export class GameLogic {
       this.sessionStats.longestStreak = this.gameState.streak;
     }
 
-    // Atualizar estatísticas
+    // Bônus de streak
+    Object.entries(GameConfig.SCORING.streakBonus).forEach(([streakCount, bonus]) => {
+      if (this.gameState.streak >= parseInt(streakCount, 10)) {
+        this.gameState.score += bonus;
+      }
+    });
+
     this.updateStats(true, timeElapsed);
 
-    // Mostrar mensagem de vitória
     const victoryMessage = ConfigManager.getMessage('victory');
-    this.ui.showMessage(victoryMessage, 'success');
+    this.showGameMessage(victoryMessage, 'success');
 
-    // Efeitos visuais
-    this.ui.showVictoryEffect();
-    this.ui.showVictoryModal(this.gameState);
-
-    // Audio
-    this.playSound('correct');
+    // Tocar sons de sucesso
+    this.playSound('success');
     setTimeout(() => this.playSound('victory'), 500);
 
-    // Vibração (mobile)
     this.vibrate([200, 100, 200]);
 
-    // Analytics
+    // Mostrar modal de vitória
+    this.showVictoryModal();
+
+    // Disparar eventos
+    this.dispatchGameEvent('gameWon', {
+      attempts: this.gameState.attempts,
+      time: timeElapsed,
+      score: this.gameState.score,
+      difficulty: this.gameState.difficulty,
+      streak: this.gameState.streak,
+    });
+
+    this.dispatchGameEvent('gameStateChanged', {
+      gameState: this.gameState,
+    });
+
     this.trackEvent('game_win', {
       attempts: this.gameState.attempts,
       time: timeElapsed,
       score: this.gameState.score,
       difficulty: this.gameState.difficulty,
-      streak: this.gameState.streak
+      streak: this.gameState.streak,
     });
 
     ConfigManager.log('Jogo ganho!', {
       score: this.gameState.score,
       attempts: this.gameState.attempts,
-      time: timeElapsed
+      time: timeElapsed,
     });
   }
 
@@ -356,7 +415,6 @@ export class GameLogic {
     let message;
     let messageType = 'warning';
 
-    // Determinar proximidade
     const difference = Math.abs(guess - secretNumber);
     const difficultyConfig = ConfigManager.getDifficultyConfig(this.gameState.difficulty);
     const range = difficultyConfig.max - difficultyConfig.min;
@@ -369,7 +427,6 @@ export class GameLogic {
       message = hints.close;
       messageType = 'warning';
     } else {
-      // Dica de maior/menor
       if (guess < secretNumber) {
         message = hints.higher.replace('{guess}', guess);
       } else {
@@ -377,20 +434,22 @@ export class GameLogic {
       }
       
       if (proximityRatio > 0.5) {
-        message += ' ' + hints.far;
+        message += ` ${hints.far}`;
       }
     }
 
-    this.ui.showMessage(message, messageType);
+    this.showGameMessage(message, messageType);
     
-    // Audio
-    this.playSound('wrong');
+    // Tocar som de erro
+    this.playSound('error');
     
-    // Vibração curta para erro
     this.vibrate([100]);
 
-    // Efeito visual de erro
-    this.ui.showWrongAnswerEffect();
+    // Mostrar feedback visual rápido
+    this.dispatchGameEvent('quickFeedback', {
+      type: 'wrong',
+      position: 'center',
+    });
 
     ConfigManager.log(`Palpite incorreto: ${guess}, secreto: ${secretNumber}`);
   }
@@ -403,29 +462,39 @@ export class GameLogic {
 
     this.gameState.isGameOver = true;
     this.gameState.endTime = Date.now();
-    this.gameState.streak = 0; // Reset streak
+    this.gameState.streak = 0;
     this.sessionStats.currentStreak = 0;
+    this.stopGameTimer();
 
     const timeElapsed = this.gameState.endTime - this.gameState.startTime;
     
-    // Atualizar estatísticas
     this.updateStats(false, timeElapsed);
 
-    // Mostrar número secreto
-    this.ui.showMessage(
-      `Que pena! O número secreto era ${this.gameState.secretNumber}. Tente novamente! 💪`,
-      'error'
+    this.showGameMessage(
+      `Que pena! O número secreto era ${this.gameState.secretNumber}. Tente novamente!`,
+      'error',
     );
 
-    // Audio
-    this.playSound('wrong');
+    // Tocar som de erro
+    this.playSound('error');
 
-    // Analytics
+    // Disparar eventos
+    this.dispatchGameEvent('gameLost', {
+      attempts: this.gameState.attempts,
+      time: timeElapsed,
+      secretNumber: this.gameState.secretNumber,
+      difficulty: this.gameState.difficulty,
+    });
+
+    this.dispatchGameEvent('gameStateChanged', {
+      gameState: this.gameState,
+    });
+
     this.trackEvent('game_lose', {
       attempts: this.gameState.attempts,
       time: timeElapsed,
       secretNumber: this.gameState.secretNumber,
-      difficulty: this.gameState.difficulty
+      difficulty: this.gameState.difficulty,
     });
   }
 
@@ -441,21 +510,22 @@ export class GameLogic {
     const oldDifficulty = this.gameState.difficulty;
     this.gameState.difficulty = newDifficulty;
     
-    // Salvar preferência
     ConfigManager.setCurrentDifficulty(newDifficulty);
     
-    // Atualizar UI
-    this.ui.updateDifficultySelector(newDifficulty);
+    // Disparar evento de mudança de dificuldade
+    this.dispatchGameEvent('difficultyChanged', {
+      difficulty: newDifficulty,
+      oldDifficulty,
+      config: GameConfig.DIFFICULTY_LEVELS[newDifficulty],
+    });
     
-    // Iniciar novo jogo se estiver jogando
     if (this.gameState.isPlaying) {
       this.newGame();
     }
 
-    // Analytics
     this.trackEvent('difficulty_change', {
       from: oldDifficulty,
-      to: newDifficulty
+      to: newDifficulty,
     });
 
     ConfigManager.log(`Dificuldade alterada: ${oldDifficulty} → ${newDifficulty}`);
@@ -466,12 +536,14 @@ export class GameLogic {
    */
   showHint() {
     if (!GameConfig.GAMEPLAY.enableHints || this.gameState.hints >= GameConfig.GAMEPLAY.maxHints) {
-      this.ui.showMessage('Sem dicas disponíveis!', 'warning');
+      this.showGameMessage('Sem dicas disponíveis!', 'warning');
+      this.playSound('error');
       return;
     }
 
     if (this.gameState.score < GameConfig.GAMEPLAY.hintCost) {
-      this.ui.showMessage(`Você precisa de ${GameConfig.GAMEPLAY.hintCost} pontos para uma dica!`, 'warning');
+      this.showGameMessage(`Você precisa de ${GameConfig.GAMEPLAY.hintCost} pontos para uma dica!`, 'warning');
+      this.playSound('error');
       return;
     }
 
@@ -481,45 +553,39 @@ export class GameLogic {
     
     let hint;
     
-    // Primeira dica: par ou ímpar
     if (this.gameState.hints === 0) {
-      hint = secretNumber % 2 === 0 ? 'O número é par! 🎯' : 'O número é ímpar! 🎯';
-    }
-    // Segunda dica: faixa mais específica
-    else if (this.gameState.hints === 1) {
+      hint = secretNumber % 2 === 0 ? 'O número é par!' : 'O número é ímpar!';
+    } else if (this.gameState.hints === 1) {
       const quarter = Math.floor(range / 4);
       const position = Math.floor((secretNumber - difficultyConfig.min) / quarter);
       const ranges = [
         `entre ${difficultyConfig.min} e ${difficultyConfig.min + quarter}`,
         `entre ${difficultyConfig.min + quarter + 1} e ${difficultyConfig.min + quarter * 2}`,
         `entre ${difficultyConfig.min + quarter * 2 + 1} e ${difficultyConfig.min + quarter * 3}`,
-        `entre ${difficultyConfig.min + quarter * 3 + 1} e ${difficultyConfig.max}`
+        `entre ${difficultyConfig.min + quarter * 3 + 1} e ${difficultyConfig.max}`,
       ];
-      hint = `O número está ${ranges[Math.min(position, 3)]}! 🎯`;
-    }
-    // Terceira dica: divisibilidade
-    else {
-      const divisors = [3, 5, 7, 11].filter(d => range > d);
+      hint = `O número está ${ranges[Math.min(position, 3)]}!`;
+    } else {
+      const divisors = [3, 5, 7, 11].filter((d) => range > d);
       if (divisors.length > 0) {
         const divisor = divisors[Math.floor(Math.random() * divisors.length)];
-        hint = secretNumber % divisor === 0 
-          ? `O número é divisível por ${divisor}! 🎯`
-          : `O número NÃO é divisível por ${divisor}! 🎯`;
+        hint = secretNumber % divisor === 0
+          ? `O número é divisível por ${divisor}!`
+          : `O número NÃO é divisível por ${divisor}!`;
       } else {
-        hint = 'Você está muito perto! Continue tentando! 🔥';
+        hint = 'Você está muito perto! Continue tentando!';
       }
     }
 
     this.gameState.hints++;
     this.gameState.score -= GameConfig.GAMEPLAY.hintCost;
     
-    this.ui.showMessage(hint, 'info');
-    this.ui.updateGameInfo(this.gameState, difficultyConfig);
+    this.showGameMessage(hint, 'info');
+    this.updateUI();
 
-    // Analytics
     this.trackEvent('hint_used', {
       hintNumber: this.gameState.hints,
-      remainingScore: this.gameState.score
+      remainingScore: this.gameState.score,
     });
 
     ConfigManager.log(`Dica ${this.gameState.hints} mostrada:`, hint);
@@ -531,16 +597,18 @@ export class GameLogic {
   validateGuess(guess) {
     const difficultyConfig = ConfigManager.getDifficultyConfig(this.gameState.difficulty);
     
-    if (isNaN(guess)) {
-      this.ui.showMessage('Por favor, digite um número válido!', 'error');
+    if (Number.isNaN(guess)) {
+      this.showGameMessage('Por favor, digite um número válido!', 'error');
+      this.playSound('error');
       return false;
     }
 
     if (guess < difficultyConfig.min || guess > difficultyConfig.max) {
-      this.ui.showMessage(
+      this.showGameMessage(
         `O número deve estar entre ${difficultyConfig.min} e ${difficultyConfig.max}!`,
-        'error'
+        'error',
       );
+      this.playSound('error');
       return false;
     }
 
@@ -554,11 +622,9 @@ export class GameLogic {
     const value = input.value;
     const difficultyConfig = ConfigManager.getDifficultyConfig(this.gameState.difficulty);
     
-    // Atualizar atributos do input
     input.min = difficultyConfig.min;
     input.max = difficultyConfig.max;
     
-    // Validação visual
     if (value && !ConfigManager.validateNumber(value, this.gameState.difficulty)) {
       input.classList.add('invalid');
     } else {
@@ -581,30 +647,20 @@ export class GameLogic {
       }
     }
 
-    // Salvar estatísticas
     this.storage.saveStats(this.sessionStats);
     
-    // Atualizar UI
-    this.ui.updateStats(this.sessionStats);
+    // Disparar evento de atualização de estatísticas
+    this.dispatchGameEvent('statsUpdated', {
+      stats: this.sessionStats,
+    });
   }
 
   /**
    * Reproduzir som
    */
   playSound(soundKey) {
-    if (!ConfigManager.isAudioEnabled() || !GameConfig.AUDIO.enabled) return;
-
-    try {
-      const soundPath = GameConfig.AUDIO.sounds[soundKey];
-      if (soundPath) {
-        const audio = new Audio(soundPath);
-        audio.volume = GameConfig.AUDIO.volume;
-        audio.play().catch(error => {
-          ConfigManager.log('Erro ao reproduzir som:', error);
-        });
-      }
-    } catch (error) {
-      ConfigManager.log('Erro no sistema de áudio:', error);
+    if (window.audioManager) {
+      window.audioManager.play(soundKey);
     }
   }
 
@@ -622,10 +678,223 @@ export class GameLogic {
   }
 
   /**
+   * Atualizar UI
+   */
+  updateUI() {
+    const difficultyConfig = ConfigManager.getDifficultyConfig(this.gameState.difficulty);
+    
+    // Atualizar informações do jogo
+    document.getElementById('gameRange').textContent = `${difficultyConfig.min} - ${difficultyConfig.max}`;
+    document.getElementById('gameAttempts').textContent = `${this.gameState.attempts}/${this.gameState.maxAttempts}`;
+    document.getElementById('gameScore').textContent = Math.max(0, this.gameState.score);
+    document.getElementById('gameTime').textContent = this.formatTime(this.gameTimeElapsed);
+    
+    // Atualizar status do jogo
+    const statusText = this.getGameStatusText();
+    document.getElementById('gameStatusText').textContent = statusText;
+    
+    // Atualizar estatísticas do header
+    document.getElementById('quickGamesCount').textContent = this.sessionStats.gamesPlayed;
+    document.getElementById('quickWinsCount').textContent = this.sessionStats.gamesWon;
+    document.getElementById('quickStreakCount').textContent = this.sessionStats.currentStreak;
+  }
+
+  /**
+   * Obter texto do status do jogo
+   */
+  getGameStatusText() {
+    if (this.gameState.isGameOver) {
+      return this.gameState.attempts <= this.gameState.maxAttempts
+        ? 'Parabéns! Você ganhou!'
+        : 'Fim de jogo!';
+    }
+
+    if (this.gameState.isPaused) {
+      return 'Jogo pausado';
+    }
+
+    if (this.gameState.isPlaying) {
+      const remaining = this.gameState.maxAttempts - this.gameState.attempts;
+      return `${remaining} tentativa${remaining !== 1 ? 's' : ''} restante${remaining !== 1 ? 's' : ''}`;
+    }
+
+    return 'Pronto para começar!';
+  }
+
+  /**
+   * Mostrar modal de vitória
+   */
+  showVictoryModal() {
+    document.getElementById('victoryNumber').textContent = this.gameState.secretNumber;
+    document.getElementById('victoryAttempts').textContent = this.gameState.attempts;
+    document.getElementById('victoryScore').textContent = this.gameState.score;
+    
+    const victoryMessage = this.getVictoryMessage();
+    document.getElementById('victoryMessage').textContent = victoryMessage;
+    
+    document.getElementById('victoryModal').style.display = 'flex';
+    
+    setTimeout(() => {
+      document.getElementById('playAgainBtn')?.focus();
+    }, 300);
+  }
+
+  /**
+   * Obter mensagem de vitória personalizada
+   */
+  getVictoryMessage() {
+    const { attempts, score, streak } = this.gameState;
+
+    if (attempts === 1) {
+      return 'INCRÍVEL! Você acertou de primeira! Você é um verdadeiro mestre!';
+    } if (attempts <= 3) {
+      return 'EXCELENTE! Pouquíssimas tentativas! Sua intuição é impressionante!';
+    } if (score > 800) {
+      return 'ÓTIMO! Pontuação fantástica! Continue assim!';
+    } if (streak >= 3) {
+      return `SEQUÊNCIA INCRÍVEL! ${streak} vitórias seguidas! Você está em chamas!`;
+    }
+    return 'PARABÉNS! Você descobriu o número secreto! Muito bem jogado!';
+  }
+
+  /**
    * Fechar modal de vitória
    */
   closeVictoryModal() {
-    this.ui.hideVictoryModal();
+    document.getElementById('victoryModal').style.display = 'none';
+    this.focusInput();
+  }
+
+  /**
+   * Mostrar mensagem de jogo
+   */
+  showGameMessage(text, type) {
+    this.dispatchGameEvent('gameMessage', {
+      text,
+      type,
+      options: {},
+    });
+  }
+
+  /**
+   * Resetar input
+   */
+  resetInput() {
+    const input = document.getElementById('numberInput');
+    if (input) {
+      input.value = '';
+      input.classList.remove('invalid');
+    }
+  }
+
+  /**
+   * Limpar input
+   */
+  clearInput() {
+    const input = document.getElementById('numberInput');
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  /**
+   * Focar no input
+   */
+  focusInput() {
+    const input = document.getElementById('numberInput');
+    if (input && GameConfig.UI.autoFocus) {
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 100);
+    }
+  }
+
+  /**
+   * Iniciar timer do jogo
+   */
+  startGameTimer() {
+    this.stopGameTimer();
+    this.gameTimer = setInterval(() => {
+      this.gameTimeElapsed = Date.now() - this.gameState.startTime;
+      document.getElementById('gameTime').textContent = this.formatTime(this.gameTimeElapsed);
+    }, 1000);
+  }
+
+  /**
+   * Parar timer do jogo
+   */
+  stopGameTimer() {
+    if (this.gameTimer) {
+      clearInterval(this.gameTimer);
+      this.gameTimer = null;
+    }
+  }
+
+  /**
+   * Formatar tempo
+   */
+  formatTime(milliseconds) {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * Disparar evento customizado
+   */
+  dispatchGameEvent(eventName, detail) {
+    document.dispatchEvent(new CustomEvent(eventName, { detail }));
+  }
+
+  /**
+   * Lidar com mudança de dificuldade vinda de componente
+   */
+  handleDifficultyChange() {
+    this.changeDifficulty(this.gameState.difficulty);
+  }
+
+  /**
+   * Lidar com guess vindo do componente de input
+   */
+  handleGuessFromInput() {
+    this.makeGuess();
+  }
+
+  /**
+   * Abrir configurações
+   */
+  openSettings() {
+    // if (GameConfig.DEBUG.enabled) {
+    //   console.log('Abrindo configurações...');
+    // }
+  }
+
+  /**
+   * Abrir estatísticas detalhadas
+   */
+  openDetailedStats() {
+    // if (GameConfig.DEBUG.enabled) {
+    //   console.log('Abrindo estatísticas detalhadas...');
+    // }
+  }
+
+  /**
+   * Abrir ajuda
+   */
+  openHelp() {
+    // if (GameConfig.DEBUG.enabled) {
+    //   console.log('Abrindo ajuda...');
+    // }
+  }
+
+  /**
+   * Alternar tema
+   */
+  cycleTheme() {
+    // if (GameConfig.DEBUG.enabled) {
+    //   console.log('Alternando tema...');
+    // }
   }
 
   /**
@@ -635,42 +904,18 @@ export class GameLogic {
     if (!GameConfig.ANALYTICS.enabled) return;
 
     try {
-      // Aqui você pode integrar com Google Analytics, Mixpanel, etc.
       ConfigManager.log('Analytics Event:', eventName, data);
       
-      // Exemplo com Google Analytics
       if (typeof gtag !== 'undefined') {
         gtag('event', eventName, {
           custom_parameter_1: data.difficulty,
           custom_parameter_2: data.score,
-          value: data.attempts
+          value: data.attempts,
         });
       }
     } catch (error) {
       ConfigManager.log('Erro no analytics:', error);
     }
-  }
-
-  /**
-   * Pausar jogo
-   */
-  pauseGame() {
-    if (!this.gameState.isPlaying || this.gameState.isGameOver) return;
-    
-    this.gameState.isPaused = true;
-    this.ui.showMessage('Jogo pausado ⏸️', 'info');
-    ConfigManager.log('Jogo pausado');
-  }
-
-  /**
-   * Retomar jogo
-   */
-  resumeGame() {
-    if (!this.gameState.isPaused) return;
-    
-    this.gameState.isPaused = false;
-    this.ui.showMessage('Jogo retomado ▶️', 'info');
-    ConfigManager.log('Jogo retomado');
   }
 
   /**
@@ -688,36 +933,11 @@ export class GameLogic {
   }
 
   /**
-   * Resetar estatísticas
-   */
-  resetStats() {
-    this.sessionStats = {
-      gamesPlayed: 0,
-      gamesWon: 0,
-      totalAttempts: 0,
-      totalTime: 0,
-      bestScore: 0,
-      currentStreak: 0,
-      longestStreak: 0
-    };
-
-    this.gameState.streak = 0;
-    this.storage.clearStats();
-    this.ui.updateStats(this.sessionStats);
-    
-    ConfigManager.log('Estatísticas resetadas');
-  }
-
-  /**
    * Limpar recursos
    */
   destroy() {
-    // Limpar listeners
-    document.removeEventListener('keydown', this.keyboardHandler);
-    
-    // Salvar estado final
+    this.stopGameTimer();
     this.storage.saveStats(this.sessionStats);
-    
     ConfigManager.log('Jogo destruído');
   }
 }
