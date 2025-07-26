@@ -1,16 +1,36 @@
 {
   "version": 2,
-  "public": true,
+  "cleanUrls": true,
+  "trailingSlash": false,
   "builds": [
     {
       "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "style/**/*",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
+      "src": "/style/(.*)",
+      "dest": "/style/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }
