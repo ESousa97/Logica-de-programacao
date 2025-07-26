@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Jogo do Número Secreto - Teste sua sorte e habilidade matemática!">
+    <meta name="keywords" content="jogo, número secreto, matemática, lógica">
+    <meta name="author" content="Lógica de Programação">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Jogo do Número Secreto">
+    <meta property="og:description" content="Teste sua sorte e habilidade matemática neste jogo interativo!">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://numero-secreto-game.vercel.app">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/src/assets/images/favicon.ico">
+    
+    <!-- Preconnect para fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- CSS Styles -->
+    <link rel="stylesheet" href="/src/styles/main.css">
+    <link rel="stylesheet" href="/src/styles/components.css">
+    <link rel="stylesheet" href="/src/styles/animations.css">
+    <link rel="stylesheet" href="/src/styles/responsive.css">
+    
+    <title>🎮 Jogo do Número Secreto</title>
+</head>
+<body>
+    <!-- Floating Particles Background -->
+    <div class="floating-particles" id="particles"></div>
+    
+    <!-- Main Container -->
+    <main class="container" id="gameContainer">
+        <!-- Game Header Component -->
+        <header class="game-header" id="gameHeader">
+            <h1 class="title">🎯 NÚMERO SECRETO</h1>
+            <p class="subtitle">Descubra o número misterioso!</p>
+        </header>
+
+        <!-- Difficulty Selector Component -->
+        <section class="difficulty-section" id="difficultySection">
+            <h3 class="section-title">Escolha a Dificuldade:</h3>
+            <div class="difficulty-selector" id="difficultySelector">
+                <button class="difficulty-btn active" data-difficulty="easy">
+                    Fácil (1-10)
+                </button>
+                <button class="difficulty-btn" data-difficulty="medium">
+                    Médio (1-100)
+                </button>
+                <button class="difficulty-btn" data-difficulty="hard">
+                    Difícil (1-1000)
+                </button>
+                <button class="difficulty-btn" data-difficulty="expert">
+                    Expert (1-5000)
+                </button>
+            </div>
+        </section>
+
+        <!-- Game Board Component -->
+        <section class="game-board" id="gameBoard">
+            <!-- Game Info Panel -->
+            <div class="game-info" id="gameInfo">
+                <div class="game-status" id="gameStatus">
+                    🎮 Pronto para começar!
+                </div>
+                <div class="game-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Intervalo</div>
+                        <div class="detail-value" id="rangeDisplay">1 - 10</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Tentativas</div>
+                        <div class="detail-value" id="attemptsDisplay">0</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Pontuação</div>
+                        <div class="detail-value" id="scoreDisplay">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Section Component -->
+            <div class="input-section" id="inputSection">
+                <div class="input-wrapper">
+                    <input 
+                        type="number" 
+                        class="number-input" 
+                        id="numberInput" 
+                        placeholder="Digite seu palpite..."
+                        min="1"
+                        max="10"
+                        autocomplete="off"
+                    >
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" id="submitBtn">
+                        🎯 Tentar
+                    </button>
+                    <button class="btn btn-secondary" id="newGameBtn">
+                        🔄 Novo Jogo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message Display Component -->
+            <div class="message-area" id="messageArea">
+                <div class="message message-info" id="gameMessage">
+                    Bem-vindo! Escolha um número e tente sua sorte! 🍀
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Panel Component -->
+        <section class="stats-panel" id="statsPanel">
+            <h3 class="section-title">📊 Suas Estatísticas</h3>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalGames">0</div>
+                    <div class="stat-label">Jogos</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalWins">0</div>
+                    <div class="stat-label">Vitórias</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="winRate">0%</div>
+                    <div class="stat-label">Taxa de Acerto</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="bestScore">0</div>
+                    <div class="stat-label">Melhor Pontuação</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgAttempts">0</div>
+                    <div class="stat-label">Média de Tentativas</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Victory Modal (Hidden by default) -->
+    <div class="modal-overlay" id="victoryModal" style="display: none;">
+        <div class="modal-content victory-modal">
+            <div class="modal-header">
+                <h2>🏆 Parabéns!</h2>
+            </div>
+            <div class="modal-body">
+                <p id="victoryMessage">Você descobriu o número secreto!</p>
+                <div class="victory-stats">
+                    <div class="victory-stat">
+                        <span class="victory-label">Número:</span>
+                        <span class="victory-value" id="victoryNumber">-</span>
+                    </div>
+                    <div class="victory-stat">
+                        <span class="victory-label">Tentativas:</span>
+                        <span class="victory-value" id="victoryAttempts">-</span>
+                    </div>
+                    <div class="victory-stat">
+                        <span class="victory-label">Pontuação:</span>
+                        <span class="victory-value" id="victoryScore">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="playAgainBtn">
+                    🎮 Jogar Novamente
+                </button>
+                <button class="btn btn-secondary" id="closeModalBtn">
+                    ❌ Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Scripts -->
+    <script type="module">
+        // Import all components and initialize the game
+        import { GameConfig } from '/src/js/config.js';
+        import { GameLogic } from '/src/js/game.js';
+        import { UIManager } from '/src/js/ui.js';
+        import { StorageManager } from '/src/js/storage.js';
+        import { Utils } from '/src/js/utils.js';
+        
+        // Initialize components
+        import '/src/components/game-header.js';
+        import '/src/components/game-board.js';
+        import '/src/components/input-section.js';
+        import '/src/components/message-display.js';
+        import '/src/components/stats-panel.js';
+        import '/src/components/difficulty-selector.js';
+
+        // Initialize the game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎮 Inicializando Jogo do Número Secreto...');
+            
+            // Initialize managers
+            const storage = new StorageManager();
+            const ui = new UIManager();
+            const game = new GameLogic(storage, ui);
+            
+            // Load saved stats
+            ui.updateStats(storage.getStats());
+            
+            // Create floating particles
+            Utils.createFloatingParticles();
+            
+            console.log('✅ Jogo inicializado com sucesso!');
+        });
+    </script>
+    
+    <!-- Fallback for older browsers -->
+    <noscript>
+        <div style="text-align: center; padding: 2rem; color: white; background: #041832;">
+            <h2>JavaScript Necessário</h2>
+            <p>Este jogo requer JavaScript para funcionar. Por favor, habilite JavaScript em seu navegador.</p>
+        </div>
+    </noscript>
+</body>
+</html>
