@@ -64,6 +64,14 @@ Experimente o "Jogo do Número Secreto" diretamente no seu navegador. O projeto 
 
 [🚀 Acesse o Jogo do Número Secreto Online](https://jogo-da-advinhacao-amber.vercel.app)
 
+## 🎬 Demonstração Visual
+
+<div align="center">
+
+![imagem1](./assets/jogodonumerosecreto.gif)
+
+</div>
+
 ## Arquitetura do Sistema
 
 O "Jogo do Número Secreto" adota uma arquitetura monolítica e totalmente client-side, o que significa que toda a lógica de negócio e apresentação reside no navegador do usuário. Esta abordagem foi escolhida pela sua simplicidade, facilidade de implantação (como um site estático) e alta performance, dado o escopo do projeto.
